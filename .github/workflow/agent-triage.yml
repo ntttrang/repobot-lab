@@ -1,0 +1,51 @@
+name: agent-triage
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build plan from issue
+        id: plan
+        env:
+          ISSUE_JSON: ${{ toJson(github.event.issue) }}
+        run: |
+          echo "$ISSUE_JSON" | python agent/planner/plan.py > plan.json
+          {
+            echo 'plan<<EOF'
+            cat plan.json
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Comment plan on issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PLAN: ${{ steps.plan.outputs.plan }}
+        run: |
+          BODY=$(printf "RepoBot plan:\n\n\`\`\`json\n%s\n\`\`\`" "$PLAN")
+          gh issue comment "${{ github.event.issue.number }}" \
+            --repo "${{ github.repository }}" --body "$BODY"
+
+      - name: Apply agent label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue edit "${{ github.event.issue.number }}"
+             --repo "${{ github.repository }}" --add-label "agent-authored"
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan-${{ github.event.issue.number }}
+          path: plan.json`
