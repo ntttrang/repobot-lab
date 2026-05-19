@@ -1,0 +1,11 @@
+# Default reviewers
+*                       @contoso-devworks/maintainers
+
+# Agent code requires platform team review
+/agent/**               @contoso-devworks/platform
+/mcp-server/**          @contoso-devworks/platform
+
+# Workflow and security changes require security review
+/.github/workflows/**   @contoso-devworks/security
+/.github/CODEOWNERS     @contoso-devworks/security
+SECURITY.md             @contoso-devworks/security

@@ -1,0 +1,52 @@
+name: agent-guardrails
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  guardrails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect agent label
+        id: label
+        env:
+          LABELS: ${{ toJson(github.event.pull_request.labels) }}
+        run: |
+          echo "$LABELS" | jq -e 'map(.name) | index("agent-authored")' >/dev/null \
+            && echo "is_agent=true"  >> "$GITHUB_OUTPUT" \
+            || echo "is_agent=false" >> "$GITHUB_OUTPUT"
+
+      - name: Block workflow edits by agent
+        if: steps.label.outputs.is_agent == 'true'
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+          if git diff --name-only "$BASE" "$HEAD" | grep -E '^(\.github/workflows/|\.github/CODEOWNERS)'; then
+            echo "::error::Agent PRs cannot modify workflows or CODEOWNERS"; exit 1
+          fi
+
+      - name: Scan diff for secrets
+        if: steps.label.outputs.is_agent == 'true'
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+          if git diff "$BASE" "$HEAD" | grep -E 'AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|sk-[A-Za-z0-9]{20,}'; then
+            echo "::error::Possible secret in diff"; exit 1
+          fi
+
+      - name: Require Closes #<issue> linkage
+        if: steps.label.outputs.is_agent == 'true'
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if ! echo "$BODY" | grep -Eiq 'closes #[0-9]+'; then
+            echo "::error::Agent PR description must contain 'Closes #<issue>'"; exit 1
+          fi
