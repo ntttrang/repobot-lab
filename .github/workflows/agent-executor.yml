@@ -1,0 +1,74 @@
+  name: agent-executor
+  on:
+    issues:
+      types: [opened, reopened]
+    workflow_dispatch:
+      inputs:
+        issue_number:
+          description: "Issue number to process"
+          required: true
+          type: number
+
+  permissions:
+    issues: write
+    contents: read
+    pull-requests: write
+
+  jobs:
+    execute:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+
+        - uses: actions/setup-python@v5
+          with:
+            python-version: "3.11"
+
+        - uses: actions/setup-node@v4
+          with:
+            node-version: "20"
+
+        - name: Install dependencies
+          run: |
+            cd mcp-server && npm install && cd ..
+            pip install zod octokit
+
+        - name: Get issue details
+          id: issue
+          env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+            ISSUE_NUM=${{ github.event.issue.number || inputs.issue_number }}
+            gh issue view $ISSUE_NUM --repo ${{ github.repository }} --json number,title,body > issue.json
+            echo "issue_num=$ISSUE_NUM" >> "$GITHUB_OUTPUT"
+
+        - name: Run full executor pipeline
+          id: execute
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            AGENT_DRY_RUN: "0"
+          run: |
+            cat issue.json | python agent/executor/run.py > run_output.txt 2>&1
+            cat run_output.txt
+
+        - name: Extract trace path
+          id: trace
+          run: |
+            TRACE=$(grep "^trace:" run_output.txt | cut -d' ' -f2)
+            echo "path=$TRACE" >> "$GITHUB_OUTPUT"
+
+        - name: Upload trace artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: executor-trace-${{ steps.issue.outputs.issue_num }}
+            path: ${{ steps.trace.outputs.path }}
+
+        - name: Comment trace summary on issue
+          env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+            TRACE_PATH="${{ steps.trace.outputs.path }}"
+            STEP_COUNT=$(grep -c '"event": "step"' "$TRACE_PATH" || echo 0)
+            BODY=$(printf "🤖 **Executor Summary**\n\n- Steps executed: %d\n- Trace: %s\n- Full trace uploaded to artifacts" "$STEP_COUNT" "$TRACE_PATH")
+            gh issue comment "${{ steps.issue.outputs.issue_num }}" \
+              --repo "${{ github.repository }}" --body "$BODY"
