@@ -5,12 +5,15 @@ import sys
 import time
 from pathlib import Path
 
+# Add repo root to path so imports work from anywhere
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
 from agent.planner.plan import build_plan
 from agent.reasoner.decide import decide
 
 try:
-    from mcp_client import call_tool  # provided in Step 3.4
-except ImportError:
+    from agent.executor.mcp_client import call_tool
+except (ImportError, ModuleNotFoundError):
     def call_tool(tool, args):
         return {"ok": True, "stub": True, "tool": tool, "args": args}
 
