@@ -1,5 +1,6 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { Octokit } from "octokit";
 import { readFileSync } from "node:fs";
@@ -38,9 +39,7 @@ async function withTimeout(p) {
   ]);
 }
 
-const repoSchema = z.object({ owner: z.string(), repo: z.string() }).default({
-  owner: "contoso-devworks", repo: "repobot-lab",
-});
+const repoSchema = z.object({ owner: z.string(), repo: z.string() });
 
 const tools = {
   get_issue: {
@@ -81,11 +80,11 @@ const tools = {
 
 const server = new Server({ name: "repobot-mcp", version: "0.1.0" }, { capabilities: { tools: {} } });
 
-server.setRequestHandler("tools/list", async () => ({
+server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: allow.tools.map((t) => ({ name: t.name, description: t.description })),
 }));
 
-server.setRequestHandler("tools/call", async (req) => {
+server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: rawArgs } = req.params;
   const tool = tools[name];
   if (!tool) return { isError: true, content: [{ type: "text", text: "tool_not_allowed" }] };
