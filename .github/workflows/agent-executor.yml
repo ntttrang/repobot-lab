@@ -49,7 +49,7 @@
             AGENT_DRY_RUN: "0"
             PYTHONPATH: ${{ github.workspace }}
           run: |
-            cat issue.json | python -m agent.executor.run > run_output.txt 2>&1
+            cat issue.json | python agent/executor/run.py > run_output.txt 2>&1
             cat run_output.txt
 
         - name: Extract trace path
