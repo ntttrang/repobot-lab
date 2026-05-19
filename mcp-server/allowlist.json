@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "repos_allowed": ["contoso-devworks/repobot-lab"],
+  "tools": [
+    {
+      "name": "get_issue",
+      "description": "Read a single issue by number.",
+      "scopes": ["issues:read"],
+      "rate_per_minute": 30
+    },
+    {
+      "name": "list_changed_files",
+      "description": "List files changed in a pull request.",
+      "scopes": ["pulls:read"],
+      "rate_per_minute": 30
+    },
+    {
+      "name": "comment_on_pr",
+      "description": "Post a comment on a pull request.",
+      "scopes": ["pulls:write"],
+      "rate_per_minute": 10,
+      "writes": true
+    }
+  ]
+}
