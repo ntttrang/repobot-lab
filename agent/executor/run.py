@@ -1,4 +1,4 @@
-`"""End-to-end executor: plan -> decide -> call MCP tool -> trace."""
+"""End-to-end executor: plan -> decide -> call MCP tool -> trace."""
 import json
 import os
 import sys
@@ -49,4 +49,4 @@ def run(issue: dict) -> Path:
     return trace_path
 
 if __name__ == "__main__":
-    run(json.load(sys.stdin))`
+    run(json.load(sys.stdin))
