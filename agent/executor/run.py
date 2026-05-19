@@ -5,8 +5,8 @@ import sys
 import time
 from pathlib import Path
 
-from planner.plan import build_plan
-from reasoner.decide import decide
+from agent.planner.plan import build_plan
+from agent.reasoner.decide import decide
 
 try:
     from mcp_client import call_tool  # provided in Step 3.4
